@@ -54,10 +54,12 @@ sub parse {
 sub to_datetime {
 
   # RFC 3339 (1994-11-06T08:49:37Z)
-  my ($s, $m, $h, $day, $month, $year) = gmtime(my $epoch = shift->epoch);
-  my $str = sprintf '%04d-%02d-%02dT%02d:%02d:%02d', $year + 1900, $month + 1,
-    $day, $h, $m, $s;
-  return $str . ($epoch =~ /(\.\d+)$/ ? $1 : '') . 'Z';
+  my ($t, $f) = _modf(shift->epoch);
+  my ($s, $m, $h, $day, $month, $year) = gmtime($t);
+  my $fmt = '%04d-%02d-%02dT%02d:%02d:' . ($f ? '%09.6f' : '%02d');
+  my $str = sprintf $fmt, $year + 1900, $month + 1, $day, $h, $m, $s + $f;
+  $str =~ s/0+$// if $f;
+  return $str . 'Z';
 }
 
 sub to_string {
@@ -67,6 +69,16 @@ sub to_string {
     = gmtime sprintf("%.0f", shift->epoch);
   return sprintf '%s, %02d %s %04d %02d:%02d:%02d GMT', $DAYS[$wday], $mday,
     $MONTHS[$month], $year + 1900, $h, $m, $s;
+}
+
+# ($t, $f) = _modf($x)
+# Decompose $x into $t + $f where $t is integer and 0 ≤ $f < 1
+sub _modf {
+  return ($_[0], 0) if $_[0] == int $_[0];
+
+  my $x = $_[0];
+  my $t = ($x >= 0) ? int $x : int $x - 1;
+  return ($t, $x - $t);
 }
 
 1;
