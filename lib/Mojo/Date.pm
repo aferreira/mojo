@@ -3,6 +3,7 @@ use Mojo::Base -base;
 use overload bool => sub {1}, '""' => sub { shift->to_string }, fallback => 1;
 
 use Time::Local 'timegm';
+use POSIX ();
 
 has epoch => sub {time};
 
@@ -54,7 +55,7 @@ sub parse {
 sub to_datetime {
 
   # RFC 3339 (1994-11-06T08:49:37Z)
-  my ($t, $f) = _modf(shift->epoch);
+  my ($f, $t) = _modf(shift->epoch);
   my ($s, $m, $h, $day, $month, $year) = gmtime($t);
   my $fmt = '%04d-%02d-%02dT%02d:%02d:' . ($f ? '%09.6f' : '%02d');
   my $str = sprintf $fmt, $year + 1900, $month + 1, $day, $h, $m, $s + $f;
@@ -71,15 +72,8 @@ sub to_string {
     $MONTHS[$month], $year + 1900, $h, $m, $s;
 }
 
-# ($t, $f) = _modf($x)
-# Decompose $x into $t + $f where $t is integer and 0 ≤ $f < 1
-sub _modf {
-  return ($_[0], 0) if $_[0] == int $_[0];
-
-  my $x = $_[0];
-  my $t = ($x >= 0) ? int $x : int $x - 1;
-  return ($t, $x - $t);
-}
+# Decompose $x into $f + $t where 0 ≤ $f < 1 and $t is integer
+sub _modf { my $t = POSIX::floor($_[0]); ($_[0] - $t, $t) }
 
 1;
 
